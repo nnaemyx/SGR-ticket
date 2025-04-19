@@ -12,9 +12,31 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Verify SMTP connection configuration
+const verifyTransporter = async () => {
+  try {
+    await transporter.verify();
+    console.log('SMTP connection verified successfully');
+    return true;
+  } catch (error) {
+    console.error('SMTP connection verification failed:', error);
+    return false;
+  }
+};
+
 export async function POST(request: Request) {
   try {
     console.log('Received request to send ticket email');
+    
+    // Verify SMTP connection first
+    const isConnected = await verifyTransporter();
+    if (!isConnected) {
+      return NextResponse.json(
+        { error: 'Email service is not properly configured', details: 'SMTP connection failed' },
+        { status: 500 }
+      );
+    }
+
     const { email, ticketType, quantity } = await request.json();
     console.log('Request data:', { email, ticketType, quantity });
 
@@ -22,6 +44,16 @@ export async function POST(request: Request) {
       console.log('Missing required fields:', { email, ticketType });
       return NextResponse.json(
         { error: 'Email and ticket type are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.log('Invalid email format:', email);
+      return NextResponse.json(
+        { error: 'Invalid email format' },
         { status: 400 }
       );
     }
@@ -36,6 +68,12 @@ export async function POST(request: Request) {
     } else if (ticketType === 'GENG OF SIX') {
       ticketImagePath = '/tickets/geng-ticket.svg';
       ticketName = 'GENG OF SIX Ticket';
+    } else {
+      console.log('Invalid ticket type:', ticketType);
+      return NextResponse.json(
+        { error: 'Invalid ticket type' },
+        { status: 400 }
+      );
     }
 
     console.log('Preparing email with:', { ticketImagePath, ticketName });
@@ -54,7 +92,7 @@ export async function POST(request: Request) {
           <p>Important Information:</p>
           <ul>
             <li>Event: Lagos in Port Harcourt</li>
-            <li>Date: [Event Date]</li>
+            <li>Date: 19th of May 2025</li>
             <li>Location: [Event Location]</li>
             <li>Ticket Type: ${ticketType}</li>
             <li>Quantity: ${quantity}</li>
@@ -81,8 +119,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error sending ticket email:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Detailed error:', {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'Unknown error type'
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to send ticket email', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: 'Failed to send ticket email', 
+        details: errorMessage,
+        type: error instanceof Error ? error.name : 'Unknown error type'
+      },
       { status: 500 }
     );
   }

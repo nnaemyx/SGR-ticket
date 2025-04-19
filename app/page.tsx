@@ -106,7 +106,7 @@ export default function Home() {
 
         {/* Hero Images Slider */}
         <div className="mb-8">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-hide">
             <div className="flex gap-[18px] pl-[23px]">
               {HERO_IMAGES.map((image, index) => (
                 <div
