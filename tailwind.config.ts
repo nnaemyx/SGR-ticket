@@ -9,8 +9,11 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        gilmer: ['var(--font-gilmer)'],
-        greconian: ['var(--font-greconian)'],
+        gilmerbold: ["Gilmer Bold", 'sans-serif'],
+        gilmerregular: ["Gilmer Regular", 'sans-serif'],
+        gilmerlight: ["Gilmer Light", 'sans-serif'],
+        gilmermedium: ["Gilmer Medium", 'sans-serif'],
+        greconian: ["Greconian", 'sans-serif'],
       },
     },
   },

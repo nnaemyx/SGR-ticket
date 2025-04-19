@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { TicketCategory } from '../types';
 import { EmailDialog } from './EmailDialog';
@@ -11,6 +11,17 @@ declare global {
       setup: (options: any) => { openIframe: () => void };
     };
   }
+}
+
+// Define Paystack response type
+interface PaystackResponse {
+  reference: string;
+  trans: string;
+  status: string;
+  message: string;
+  transaction: string;
+  trxref: string;
+  [key: string]: any;
 }
 
 interface TicketListProps {
@@ -25,6 +36,19 @@ const TicketList = ({ categories, userEmail, onEmailSubmit }: TicketListProps) =
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<TicketCategory | null>(null);
   const [localEmail, setLocalEmail] = useState(userEmail);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paystackKey, setPaystackKey] = useState<string>('');
+
+  // Load Paystack key on component mount
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+    if (key) {
+      setPaystackKey(key);
+      console.log('Paystack key loaded:', key.substring(0, 10) + '...');
+    } else {
+      console.error('Paystack key is missing!');
+    }
+  }, []);
 
   // Update local email when userEmail prop changes
   useEffect(() => {
@@ -79,15 +103,95 @@ const TicketList = ({ categories, userEmail, onEmailSubmit }: TicketListProps) =
     }
   };
 
+  const sendTicketEmail = async (ticketType: string, quantity: number) => {
+    console.log('Attempting to send ticket email to:', localEmail);
+    console.log('Ticket type:', ticketType);
+    console.log('Quantity:', quantity);
+    
+    try {
+      console.log('Sending request to /api/send-ticket');
+      const response = await fetch('/api/send-ticket', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: localEmail,
+          ticketType,
+          quantity,
+        }),
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error(errorData.error || 'Failed to send ticket email');
+      }
+
+      const data = await response.json();
+      console.log('Email sent successfully:', data);
+      toast.success('Ticket sent to your email!');
+    } catch (error) {
+      console.error('Error sending ticket email:', error);
+      toast.error('Failed to send ticket email. Please contact support.');
+    }
+  };
+
+  // Define callback functions using useCallback to ensure they're stable
+  const handlePaymentSuccess = useCallback(async (response: PaystackResponse) => {
+    console.log('Payment successful:', response);
+    toast.success('Payment successful! Sending your ticket...');
+    
+    if (selectedCategory) {
+      console.log('Selected category for email:', selectedCategory);
+      // Send ticket email after successful payment
+      await sendTicketEmail(selectedCategory.name, quantities[selectedCategory.id] || 1);
+    } else {
+      console.error('No selected category found for email sending');
+      toast.error('Could not determine ticket type for email. Please contact support.');
+    }
+    
+    // Reset processing state
+    setIsProcessingPayment(false);
+  }, [selectedCategory, quantities, localEmail]);
+
+  const handlePaymentClose = useCallback(() => {
+    console.log('Payment closed');
+    toast.error('Payment cancelled');
+    setIsProcessingPayment(false);
+  }, []);
+
   const handlePayment = async (category: TicketCategory) => {
     try {
+      // Check if Paystack key is available
+      if (!paystackKey) {
+        console.error('Paystack key is missing');
+        toast.error('Payment system is not properly configured. Please contact support.');
+        return;
+      }
+
+      setIsProcessingPayment(true);
+      setSelectedCategory(category);
+      
       console.log('Processing payment with email:', localEmail);
       const quantity = quantities[category.id] || 1;
       const amount = category.price * quantity * 100; // Convert to kobo
 
-      // Initialize Paystack payment
+      // Log payment configuration for debugging
+      console.log('Payment configuration:', {
+        key: paystackKey.substring(0, 10) + '...',
+        email: localEmail,
+        amount,
+        currency: 'NGN',
+        ticketType: category.name,
+        quantity
+      });
+
+      // Initialize Paystack payment with direct function references
       const handler = window.PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY!,
+        key: paystackKey,
         email: localEmail.trim(), // Ensure email is trimmed
         amount,
         currency: 'NGN',
@@ -106,20 +210,21 @@ const TicketList = ({ categories, userEmail, onEmailSubmit }: TicketListProps) =
             }
           ]
         },
-        callback: (response: any) => {
-          toast.success('Payment successful! Check your email for the ticket.');
-          // Here you would typically call your API to process the successful payment
-          // and send the ticket via email
+        callback: function(response: PaystackResponse) {
+          console.log('Paystack callback triggered with response:', response);
+          handlePaymentSuccess(response);
         },
-        onClose: () => {
-          toast.error('Payment cancelled');
+        onClose: function() {
+          console.log('Paystack onClose triggered');
+          handlePaymentClose();
         }
       });
 
       handler.openIframe();
     } catch (error) {
-      toast.error('Payment initialization failed');
-      console.error('Payment error:', error);
+      console.error('Payment initialization error:', error);
+      toast.error(`Payment initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsProcessingPayment(false);
     }
   };
 
@@ -165,8 +270,9 @@ const TicketList = ({ categories, userEmail, onEmailSubmit }: TicketListProps) =
               <button
                 onClick={() => handleBuyNow(category)}
                 className="bg-[#067976] text-white px-[31px] font-semibold py-3 hover:bg-teal-700 transition-colors"
+                disabled={isProcessingPayment}
               >
-                Buy Now
+                {isProcessingPayment ? 'Processing...' : 'Buy Now'}
               </button>
             </div>
           </div>
