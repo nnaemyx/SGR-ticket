@@ -29,8 +29,31 @@ const verifyTransporter = async () => {
 // Function to read ticket image as base64
 const getTicketImageAsBase64 = (ticketType: string): string => {
   try {
-    const imagePath = path.join(process.cwd(), 'public', 'tickets', `${ticketType.toLowerCase()}-ticket.png`);
+    // Map ticket types to their file names
+    let fileName = '';
+    if (ticketType === 'RAVERS') {
+      fileName = 'ravers-ticket.png';
+    } else if (ticketType === 'GENG OF SIX') {
+      fileName = 'geng-ticket.png';
+    } else {
+      throw new Error(`Unknown ticket type: ${ticketType}`);
+    }
+    
+    console.log('Looking for ticket image with file name:', fileName);
+    
+    // Construct the image path
+    const imagePath = path.join(process.cwd(), 'public', 'tickets', fileName);
+    console.log('Full image path:', imagePath);
+    
+    // Check if file exists
+    if (!fs.existsSync(imagePath)) {
+      console.error('Ticket image file not found at path:', imagePath);
+      throw new Error(`Ticket image file not found: ${fileName}`);
+    }
+    
+    // Read the file
     const imageBuffer = fs.readFileSync(imagePath);
+    console.log('Successfully read ticket image file');
     return imageBuffer.toString('base64');
   } catch (error) {
     console.error('Error reading ticket image:', error);
@@ -88,8 +111,8 @@ export async function POST(request: Request) {
 
     console.log('Preparing email with ticket:', ticketName);
 
-    // Get ticket image as base64
-    const ticketImageBase64 = getTicketImageAsBase64(ticketType.toLowerCase().replace(/\s+/g, '-'));
+    // Get ticket image as base64 - pass the original ticketType
+    const ticketImageBase64 = getTicketImageAsBase64(ticketType);
 
     // Email content
     const mailOptions = {
