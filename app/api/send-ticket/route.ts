@@ -63,10 +63,10 @@ export async function POST(request: Request) {
     let ticketName = '';
 
     if (ticketType === 'RAVERS') {
-      ticketImagePath = '/tickets/ravers-ticket.svg';
+      ticketImagePath = '/tickets/ravers-ticket.png';
       ticketName = 'RAVERS Ticket';
     } else if (ticketType === 'GENG OF SIX') {
-      ticketImagePath = '/tickets/geng-ticket.svg';
+      ticketImagePath = '/tickets/geng-ticket.png';
       ticketName = 'GENG OF SIX Ticket';
     } else {
       console.log('Invalid ticket type:', ticketType);
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       `,
       attachments: [
         {
-          filename: `${ticketName.toLowerCase().replace(/\s+/g, '-')}.svg`,
+          filename: `${ticketName.toLowerCase().replace(/\s+/g, '-')}.png`,
           path: `${process.cwd()}/public${ticketImagePath}`,
         },
       ],
