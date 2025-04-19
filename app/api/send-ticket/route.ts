@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import path from 'path';
+import fs from 'fs';
 
 // Create a transporter using SMTP
 const transporter = nodemailer.createTransport({
@@ -21,6 +23,18 @@ const verifyTransporter = async () => {
   } catch (error) {
     console.error('SMTP connection verification failed:', error);
     return false;
+  }
+};
+
+// Function to read ticket image as base64
+const getTicketImageAsBase64 = (ticketType: string): string => {
+  try {
+    const imagePath = path.join(process.cwd(), 'public', 'tickets', `${ticketType.toLowerCase()}-ticket.png`);
+    const imageBuffer = fs.readFileSync(imagePath);
+    return imageBuffer.toString('base64');
+  } catch (error) {
+    console.error('Error reading ticket image:', error);
+    throw new Error('Failed to read ticket image');
   }
 };
 
@@ -58,15 +72,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Determine which ticket image to attach based on ticket type
-    let ticketImagePath = '';
+    // Determine ticket name based on ticket type
     let ticketName = '';
-
     if (ticketType === 'RAVERS') {
-      ticketImagePath = '/tickets/ravers-ticket.png';
       ticketName = 'RAVERS Ticket';
     } else if (ticketType === 'GENG OF SIX') {
-      ticketImagePath = '/tickets/geng-ticket.png';
       ticketName = 'GENG OF SIX Ticket';
     } else {
       console.log('Invalid ticket type:', ticketType);
@@ -76,7 +86,10 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('Preparing email with:', { ticketImagePath, ticketName });
+    console.log('Preparing email with ticket:', ticketName);
+
+    // Get ticket image as base64
+    const ticketImageBase64 = getTicketImageAsBase64(ticketType.toLowerCase().replace(/\s+/g, '-'));
 
     // Email content
     const mailOptions = {
@@ -106,7 +119,8 @@ export async function POST(request: Request) {
       attachments: [
         {
           filename: `${ticketName.toLowerCase().replace(/\s+/g, '-')}.png`,
-          path: `${process.cwd()}/public${ticketImagePath}`,
+          content: ticketImageBase64,
+          encoding: 'base64'
         },
       ],
     };
