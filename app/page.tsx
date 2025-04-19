@@ -45,7 +45,7 @@ const SPONSORS = [
   },
   {
     name: "UGO Lifestyle",
-    logo: "/sponsors/L in P flex UGO Lifestyle 1.png",
+    logo: "/sponsors/L in P flex Ugo Lifestyle 1.png",
   },
 ];
 
