@@ -128,8 +128,8 @@ export async function POST(request: Request) {
           <p>Important Information:</p>
           <ul>
             <li>Event: Lagos in Port Harcourt</li>
-            <li>Date: 19th of May 2025</li>
-            <li>Location: [Event Location]</li>
+            <li>Date: 17th of May 2025</li>
+            <li>Location: Calvary Lounge, Ei Homes, Road F, off Adageorge</li>
             <li>Ticket Type: ${ticketType}</li>
             <li>Quantity: ${quantity}</li>
           </ul>
